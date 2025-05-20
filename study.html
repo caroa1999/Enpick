@@ -98,7 +98,7 @@
     } else {
       currentType = 'all';
     }
-
+      //
     document.addEventListener('DOMContentLoaded', async () => {
       // 1) 로그인 검사
       try {
@@ -128,6 +128,7 @@
       btnReview.addEventListener('click', () => {
         if (currentType === 'review') return;
         currentType = 'review';
+        learnedSet = new Set();
         updateToggleUI();
         loadWords();
       });
@@ -153,7 +154,9 @@
     // 단어 목록 불러오기
     async function loadWords() {
       let url;
+      let data;
       if (currentType === 'review'){
+        learnedSet = new Set(); // [추가] 복습모드 진입시 항상 초기화
         const res = await fetch(`/api/review-words?user_id=${userId}`);
         const json = await res.json();
         data = json.words;
@@ -239,34 +242,41 @@
       // 즐겨찾기 버튼 상태
       starBtn.textContent = w.is_starred ? '★' : '☆';
       starBtn.classList.toggle('active', Boolean(w.is_starred));
+      // [수정] 카드 이벤트 항상 재등록
+      attachCardEvent();
     }
 
-    // 카드 플립
-    document.getElementById('cardInner').addEventListener('click', () => {
-      document.getElementById('cardInner').classList.toggle('flipped');
-
-      const word = words[current];
-      if (!word || !userId) return;
-
-      const wordId = word.id || word.word_id;
-      if (!wordId) return;
-      console.log('저장')
-      // 로그 저장
-      fetch('/api/learning-log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: userId,
-          word_id: wordId,
-          type: 'study'
-        })
-      });
-
-      // 복습 모드일 경우 전체 학습 완료 여부 확인
-      if (currentType === 'review') {
+    // 카드 플립 *수정
+    function attachCardEvent() {
+  const cardInner = document.getElementById('cardInner');
+  if (!cardInner) return;
+  cardInner.onclick = null; // [중복방지] 기존 이벤트 제거
+  cardInner.onclick = () => {
+    cardInner.classList.toggle('flipped');
+    const word = words[current];
+    if (!word || !userId) return;
+    const wordId = word.id || word.word_id;
+    if (!wordId) return;
+    console.log('로그 전송', userId, wordId);
+    fetch('/api/learning-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: userId,
+        word_id: wordId,
+        type: 'study'
+      })
+    });
+    // 복습 모드일 경우 전체 학습 완료 여부 확인
+    if (currentType === 'review') {
+      learnedSet.add(wordId);
+      if (learnedSet.size === words.length) {
         checkReviewMission(userId);
       }
-    });
+    }
+  }
+}
+
 
     // 이전/다음
     document.getElementById('prevBtn').addEventListener('click', () => {
@@ -296,8 +306,15 @@
 
     // 상세보기 버튼
     document.getElementById('detailBtn').addEventListener('click', () => {
-      const w = words[current];
-      location.href = `seemore.html?wordId=${encodeURIComponent(w.id)}`;
+     const w = words[current];
+        // location.href = `seemore.html?wordId=${encodeURIComponent(w.id)}`;
+        // ↓ 수정: id 또는 word_id 둘 다 체크
+        const wordId = w.id || w.word_id;
+        if (!wordId) {
+          alert("단어 id를 찾을 수 없습니다.");
+          return;
+  }
+  location.href = `seemore.html?wordId=${encodeURIComponent(wordId)}`;
     });
 
     // 발음 재생
@@ -330,6 +347,9 @@
     let isMouseDown = false;
     let mouseStartX = 0;
     let mouseEndX   = 0;
+
+    // 5) 카드 플립 이벤트를 위한 변수수
+    let learnedSet = new Set();
 
     // ─── 터치 이벤트 ─────────────────────────
     cardContainer.addEventListener('touchstart', e => {
@@ -381,11 +401,27 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             user_id: userId,
-            mission_type: 'reviewstudy'
+            mission_type: 'reviewstudy',
+            accuracy: 100
           })
         });
       }
     }
+      // [수정] 상세 버튼 이벤트: word.id를 반드시 넘기기
+    button.addEventListener('click', function() {
+      if (!word.id) { console.warn('word.id is undefined', word); }
+     location.href = "seemore.html?wordId=" + word.id;
+    });
+
+      // [추가] 복습 종료 후 미션 완료 처리
+        fetch('/api/mission-complete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+        user_id: USER_ID,
+        mission_type: 'reviewstudy'
+        })
+      });
 
 
     document.getElementById('hamburger')?.addEventListener('click', () => {
