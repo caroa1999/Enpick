@@ -1,0 +1,12 @@
+node_modules/ 
+# 압축파일 무시
+*.zip
+
+# CSV 파일 무시
+*.csv
+
+# PPTX 파일 무시
+*.pptx
+
+# 특정 폴더 무시
+v2/
