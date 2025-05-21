@@ -1,0 +1,440 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f6fc;
+    min-height: 100vh;
+    position: relative;
+}
+/* 타이틀 큰 제목 */
+.main-content h1 {
+    margin-bottom: 30px;
+    color: #333;
+    font-size: 24px;
+}
+
+/* 통계 카드 */
+.stats-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+.stat-card {
+    background-color: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.stat-card h3 {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 10px;
+    font-weight: 500;
+}
+
+.stat-card .number {
+    font-size: 28px;
+    font-weight: bold;
+    color: #7d87dc;
+}
+
+/* 오늘의 학습 섹션 */
+.learning-section {
+    background-color: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.learning-section h2 {
+    color: #333;
+    font-size: 20px;
+    margin-bottom: 20px;
+}
+
+.mission-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 20px;
+    margin-top: 30px;
+}
+.attendance-container {
+    grid-column: 1 / 2 !important;
+}
+.mission-card.mission-tasks-card {
+    grid-column: 2 / 4 !important;
+}
+.mission-card {
+    background-color: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.mission-card h2 {
+    font-size: 20px;
+    margin-bottom: 20px;
+}
+label {
+    display: block;
+    margin-bottom: 10px;
+}
+.mission-item {
+    background: #f8f9ff;
+    border: 1px solid #d1d1e0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    font-size: 15px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+}
+.mission-item i {
+    font-size: 18px;
+    vertical-align: middle;
+    margin-right: 8px;
+    color: #888;  /* 회색으로 기본 미완료 느낌 */
+}
+
+.mission-item.completed i {
+    color: #4CAF50; /* 완료 시 초록색 */
+}
+
+.mission-item.review-mission {
+    display: block;
+    padding: 12px;
+    background-color: #fff;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    margin-bottom: 16px;
+    position: relative;
+}
+
+.review-mission-header {
+    display: block !important;
+    flex-direction: column;
+    width: 100%;   
+    font-weight: bold;
+    font-size: 16px;
+    margin-bottom: 8px;
+}
+
+.review-mission-header i.fa-square-check,
+.review-mission-header i.fa-square-xmark {
+    display: inline-block;
+    margin-right: 8px;
+    font-size: 18px;
+}
+
+.review-mission-header i.fa-circle-info {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 16px;
+    color: #888;
+}
+
+.review-mission-header i.fa-square-check {
+    color: #4CAF50;
+}
+
+.review-mission-header i.fa-square-xmark {
+    color: #888;
+}
+
+.review-header-label {
+    display: inline-block;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.review-inner-box {
+    margin-left: 26px; /* 체크박스 공간 확보 */
+    background-color: #f8f8f8;
+    border-radius: 8px;
+    padding: 10px;
+    max-height: 120px;
+    overflow-y: auto;
+}
+.review-words-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    list-style: none;
+    padding: 0;
+    margin-bottom: 10px;
+}
+
+.word-badge {
+    background-color: #7d87dc;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 20px;
+    margin: 5px;
+    font-size: 14px;
+    white-space: nowrap;
+    display: inline-block;
+    text-decoration: none;
+    transition: background-color 0.2s;
+}
+.word-badge:hover {
+    background-color: #5a64c4;
+}
+
+.review-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    margin-left: 26px;
+}
+
+.review-actions .action-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.review-actions i {
+    font-size: 18px;
+    color: #888;
+    margin-left: 15px;
+    margin-right: 0;
+}
+
+.review-actions.completed i {
+    color: #4CAF50; /* 완료 시 초록색 */
+}
+
+.review-actions button {
+    background-color: #7d87dc;
+    color: white;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 15px;
+}
+
+.attendance-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+/* ─── Calendar 통합 CSS ─── */
+.attendance-calendar {
+    /* 패널 flex 안에서 남은 공간을 가득 채우도록 */
+    flex: 1 !important;
+    /* width 고정 해제 */
+    width: auto !important;
+    max-width: none !important;
+    /* 자식이 절대배치돼도 이 안에 묶이게 기준점 설정 */
+    position: relative !important;
+    margin: 16px 0 !important;
+}
+
+/* .attendance-calendar > * {
+    /* wrapper 직속 자식도 100% 폭 *//*
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+} */
+
+.attendance-calendar .litepicker,
+.attendance-calendar .container__main {
+    /* 팝업 형태라도 wrapper 폭을 따라잡게 */
+    width: 100% !important;
+    max-width: none !important;
+}
+
+/* ─── 달력 월별 블록도 부모 폭 100% 강제 ─── */
+.attendance-calendar .container__months,
+.attendance-calendar .month-item {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+}
+
+.attendance-calendar .container__days {
+    display: grid         !important;
+    grid-template-columns: repeat(7, 1fr) !important;
+    width: 100%           !important;
+    max-width: none       !important;
+    padding: 0            !important;
+    gap: 0.5rem           !important; /* 옵션: 날짜들 사이 간격 */
+}
+
+.attendance-calendar .container__days > * {
+    align-self: center !important;    /* 그리드 셀 안에서 수직 중앙 */
+    justify-self: center !important;  /* 그리드 셀 안에서 수평 중앙 */
+}
+
+.attendance-calendar .month-item-weekdays-row {
+    display: grid               !important;
+    grid-template-columns: repeat(7, 1fr) !important;
+    width: 100%                 !important;
+    max-width: none             !important;
+    margin: 0 0 4px             !important; /* 아래쪽만 살짝 공간 */
+    padding-left: 0px !important;
+}
+.attendance-calendar .month-item-weekdays-row > div:first-child {
+    padding-left: 2px !important;
+}
+.attendance-calendar .month-item-weekdays-row > * {
+    align-self: center !important;    /* 그리드 셀 안에서 수직 중앙 */
+    justify-self: center !important;  /* 그리드 셀 안에서 수평 중앙 */
+}
+
+.attendance-calendar .day-item {
+    /* 기존 패딩 제거 */
+    padding: 0 !important;
+    /* 원하는 크기로 고정 (ex. 36px) */
+    width: 36px !important;
+    height: 36px !important;
+    /* 숫자를 정확히 센터에 */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    /* 셀 간 간격은 container__days gap 으로 */
+    margin: 0 !important;
+}
+
+/* 하이라이트용 스타일도 유지 */
+.attendance-calendar .day-item.is-highlighted {
+    background-color: #7d87dc !important;
+    color: white !important;
+    border-radius: 50%;
+    font-weight: bold;
+}
+
+.streak-text {
+    margin: 16px 0;
+    font-size: 16px;
+    color: #333;
+    font-weight: 500;
+    text-align: center;
+}
+.streak-text .streak-count {
+    font-size: 24px;
+    color: #7d87dc;
+    font-weight: bold;
+}
+
+.attendance-panel {
+    flex: 1;
+    min-width: 240px;
+    max-height: 480px;
+    background: #fff;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.attendance-panel h3 {
+    margin-bottom: 12px;
+    font-size: 18px;
+}
+
+#attendanceBtn {
+    width: 100%;
+    padding: 10px 20px;
+    background-color: #7d87dc;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+#attendanceBtn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.info-icon {
+    margin-left: 8px;
+    color: #888;
+    cursor: pointer;
+    font-size: 15px;
+    position: relative;
+}
+
+.info-tooltip {
+    position: absolute;
+    background-color: #fff;
+    border: 1px solid #aaa;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #333;
+    white-space: normal;
+    z-index: 999;
+    max-width: 300px;
+    top: 28px;
+    left: 20px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.mission-progress {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f8f9ff;
+    border-radius: 8px;
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 8px;
+    background-color: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+
+.progress-bar {
+    height: 100%;
+    background-color: #4CAF50;
+    width: 0%;
+    transition: width 0.3s ease-in-out;
+}
+
+.progress-text {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 5px;
+    font-size: 14px;
+    color: #666;
+}
+
+.progress-text .current {
+    color: #4CAF50;
+    font-weight: bold;
+}
+
+@media (max-width: 1200px) {
+    .stats-container {
+    grid-template-columns: repeat(2, 1fr);
+    }
+    .mission-grid {
+    grid-template-columns: 1fr !important;
+    }
+    .attendance-container,
+    .mission-card.mission-tasks-card {
+    grid-column: auto !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .stats-container {
+    grid-template-columns: 1fr;
+    }
+}

@@ -1,0 +1,467 @@
+/* 검색 섹션 스타일 */
+.search-section {
+  background-color: white;
+  padding: 15px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-bottom: 25px;
+}
+/* 검색 박스 스타일 */
+.search-box {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  padding: 0 5px;
+}
+/* 검색 입력 박스 스타일 */
+.search-input-wrapper {
+  position: relative;
+  flex: 1;
+}
+
+.search-input-wrapper input {
+  width: 100%;
+  height: 38px;
+  padding: 0 15px 0 35px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.3s;
+}
+
+.search-input-wrapper input:focus {
+  border-color: #7d87dc;
+}
+
+.search-input-wrapper::before {
+  content: '🔍';
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: #666;
+  pointer-events: none;
+}
+/*품사 선택 박스 스타일 */
+.search-box select {
+  height: 38px;
+  padding: 0 15px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  width: 180px;
+  background-color: white;
+  outline: none;
+  transition: border-color 0.3s;
+  cursor: pointer;
+}
+
+.search-box select:focus {
+  border-color: #7d87dc;
+}
+
+/* 단어 테이블 스타일 */
+.word-table {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.word-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.word-table th {
+  background-color: #f8f9fd;
+  padding: 15px 20px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  white-space: nowrap;
+}
+
+.word-table td {
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+  color: #666;
+}
+
+.word-table tr:hover {
+  background-color: #f8f9fd;
+}
+
+/* 테이블 컬럼 너비 조정 */
+.word-table th:nth-child(1),
+.word-table td:nth-child(1) {
+  width: 20%;
+}
+
+.word-table th:nth-child(2),
+.word-table td:nth-child(2) {
+  width: 25%;
+}
+
+.word-table th:nth-child(3),
+.word-table td:nth-child(3) {
+  width: 20%;
+}
+
+.word-table th:nth-child(4),
+.word-table td:nth-child(4) {
+  width: 25%;
+}
+
+.word-table th:nth-child(5),
+.word-table td:nth-child(5) {
+  width: 10%;
+}
+
+/* 페이지네이션 스타일 */
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.pagination button {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  background-color: white;
+  color: #333;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.3s;
+  min-width: 40px;
+}
+
+.pagination button:hover {
+  background-color: #7d87dc;
+  color: white;
+  border-color: #7d87dc;
+}
+
+.pagination button.active {
+  background-color: #7d87dc;
+  color: white;
+  border-color: #7d87dc;
+}
+
+.pagination button:disabled {
+  background-color: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+  border-color: #ddd;
+}
+
+/* 메인 콘텐츠 영역 스타일 */
+.main-content {
+  padding: 20px;
+  margin-left: 250px;
+  min-height: calc(100vh - 60px);
+}
+
+.main-content h1 {
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 24px;
+} 
+
+.selected-row {
+  background-color: #eef1ff !important;
+}
+
+.study-btn {
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background-color: #7d87dc;
+  color: white;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap; /* 줄바꿈 방지 */
+}
+
+.study-btn:hover {
+  background-color: #5c63bd;
+}
+
+
+/* 카드 컨테이너 */
+.card-container {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+/* 개별 단어 카드 */
+.word-card {
+  position: relative;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 16px;
+  width: 240px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+  transition: transform 0.2s ease;
+}
+.word-card:hover {
+  transform: scale(1.02);
+}
+.word-card h3 {
+  margin: 0;
+  color: #333;
+}
+.word-card .meaning {
+  margin: 8px 0;
+  font-size: 15px;
+  color: #444;
+  font-weight: bold;
+}
+.word-card button {
+  margin-top: 10px;
+}
+
+/* 뷰 전환 버튼 */
+.view-toggle {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 20px 0;
+}
+.view-toggle button {
+  background-color: #e0e3fc;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.view-toggle button.active {
+  background-color: #7c85e4;
+  color: white;
+}
+
+
+.sort-filter-bar {
+  margin: 10px 0 20px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+.sort-filter-bar select {
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+.sort-btn.active {
+  background-color: #e0e3fc !important;
+  color: #000;
+  font-weight: bold;
+  border: 2px solid #7c85e4;
+}
+.word-card:hover {
+  background-color: #f3effa;
+  transition: background-color 0.3s ease;
+}
+.word-card em.part-of-speech {
+  font-style: italic;
+  color: #555;
+  margin-left: 4px;
+}
+
+.word-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+}
+
+.added-icon-wrapper {
+  margin-top: 8px;
+}
+
+.added-icon, .toggle-icon {
+  font-size: 18px;
+  margin-right: 6px;
+  color: #666;
+}
+
+.added-icon[title="수동 추가"] {
+  color: #ecf00c;
+}
+
+.added-icon[title="테스트 오답"] {
+  color: #9b59b6;
+}
+
+.added-icon[title="게임 오답"] {
+  color: #2994e1;
+}
+.toggle-icon[title="미학습"]{
+  color: #000;
+}
+
+/* 카드 자동 반응형 레이아웃 */
+
+.sort-direction-btn {
+  padding: 6px 14px;
+  background-color: #eee;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  font-size: 14px;
+}
+
+.sort-direction-btn.ascending {
+  background-color: #e0f3ff;
+  border-color: #00aaff;
+  color: #0077cc;
+  font-weight: bold;
+}
+
+.sort-direction-btn.descending {
+  background-color: #e0f3e0;
+  border-color: #3ff23f;
+  color: #069806;
+  font-weight: bold;
+}
+
+.search-view-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.search-input-wrapper.compact {
+  position: relative;
+  flex: 1;
+  max-width: 350px; /* 기본 최대 너비 - PC용 */
+}
+.search-input-wrapper.compact input {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px 0 32px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+.search-input-wrapper.compact::before {
+  content: '🔍';
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: #666;
+  pointer-events: none;
+}
+
+/*학습완료 버튼*/
+.toggle-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 16px;
+}
+
+.toggle-bg {
+  width: 40px;
+  height: 20px;
+  border-radius: 20px;
+  background-color: #ccc;
+  position: relative;
+  transition: background-color 0.2s;
+}
+
+.toggle-handle {
+  width: 18px;
+  height: 18px;
+  background-color: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  transition: left 0.2s;
+}
+
+.toggle-wrapper[data-checked="true"] .toggle-bg {
+  background-color: #2ecc71;
+}
+
+.toggle-wrapper[data-checked="true"] .toggle-handle {
+  left: 21px;
+}
+
+.toggle-icon {
+  transition: color 0.2s;
+  color: #888;
+}
+
+.toggle-wrapper[data-checked="true"] .toggle-icon {
+  color: #2ecc71;
+}
+
+.toggle-wrapper.float {
+  position: absolute;
+  top: 22px;
+  right: 12px;
+}
+
+
+@media (max-width: 768px) {
+  /* 카드 내부 여백 줄이기 */
+  .word-card {
+    width: 200px;
+    font-size: 14px;
+    padding: 12px;
+  }
+
+  .card-container {
+    gap: 10px; /* 모바일에서 카드 간격 줄임 */
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+
+  /* 정렬/필터 정렬 위아래로 */
+  .sort-filter {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .sort-group,
+  .filter-group {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  /* 테이블 가로스크롤 */
+  .word-table table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .main-content {
+    margin-left: 0;
+  }
+  .search-input-wrapper.compact {
+    max-width: 100%;
+  }
+  .toggle-wrapper.float {
+    top: 18px;
+    transform: scale(0.8);   /* 버튼 크기만 줄임 */
+    transform-origin: top right; /* 우측 상단 기준으로 축소 */
+  }
+}

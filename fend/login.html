@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>EnPick - 로그인</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="left">
+      <div class="left-inner">
+        <div class="logo-box">
+          <img src="assets/enpick-logo.png" alt="EnPick 로고" class="logo" />
+          <h1>EnPick</h1>
+          <p>당신만을 위한 토익 영어 단어 학습장</p>
+        </div>
+        <img src="assets/study-illustration.png" alt="공부 이미지" class="illustration" />
+      </div>
+    </div>
+    
+    <div class="right">
+      <h2>Hello Again!</h2>
+      <p>Welcome Back</p>
+      <form id="loginForm">
+        <input type="email" name="email" placeholder="이메일" required />
+        <input type="password" name="password" placeholder="비밀번호" required />
+        <button type="submit">로그인</button>
+        <p id="error-message" class="hidden">이메일 또는 비밀번호가 올바르지 않습니다.</p>
+      </form>
+      
+      <div class="bottom-links">
+        <a href="signup.html">Want Join Us?</a>
+        <span class="divider">|</span>
+        <a href="forgot-password.html">Forgot Password?</a>
+      </div>
+    </div>
+  </div>
+  <style>
+    .bottom-links {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 15px;
+      margin-top: 20px;
+    }
+    .bottom-links a {
+      color: #7d87dc;
+      text-decoration: none;
+    }
+    .bottom-links a:hover {
+      text-decoration: underline;
+    }
+    .divider {
+      color: #ccc;
+    }
+  </style>
+
+  <script>  //로그인 여부 localStorage 저장, userRole 처리 등 위한 Script 추가
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = e.target.email.value;
+      const password = e.target.password.value;
+
+      const response = await fetch('http://localhost:3000/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('userRole', result.role);
+        localStorage.setItem('userName', result.name);
+        window.location.href = 'home.html';
+      } else {
+        document.getElementById('error-message').textContent = result.message || '로그인 실패';
+        document.getElementById('error-message').classList.remove('hidden');
+      }
+
+    });
+  </script>
+</body>
+</html>

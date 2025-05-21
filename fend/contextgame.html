@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>문맥 게임</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f4f6fc;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+
+    .game-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    .game-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: white;
+      padding: 15px 25px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
+
+    .game-controls {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
+
+    .score, .timer {
+      font-size: 1.2em;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .score span, .timer span {
+      color: #6c80ff;
+      margin-left: 5px;
+    }
+
+    .game-content {
+      background: white;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .context {
+      font-size: 1.3em;
+      line-height: 1.8;
+      color: #333;
+      margin-bottom: 25px;
+      padding: 20px;
+      background: #f8f9ff;
+      border-radius: 10px;
+      border-left: 4px solid #6c80ff;
+    }
+
+    .question {
+      font-size: 1.2em;
+      margin-bottom: 30px;
+      color: #444;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .option-btn {
+      padding: 20px;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 1.1em;
+      color: #333;
+      text-align: center;
+      font-weight: 500;
+    }
+
+    .option-btn:hover {
+      background: #f0f3ff;
+      transform: translateY(-2px);
+      border-color: #6c80ff;
+      box-shadow: 0 4px 10px rgba(108, 128, 255, 0.1);
+    }
+
+    .option-btn.correct {
+      background: #4caf50;
+      color: white;
+      border-color: #4caf50;
+      transform: scale(1.02);
+    }
+
+    .option-btn.wrong {
+      background: #f44336;
+      color: white;
+      border-color: #f44336;
+      transform: scale(1.02);
+    }
+
+    .option-btn:disabled {
+      cursor: default;
+      opacity: 0.8;
+    }
+
+    .exit-btn {
+      padding: 8px 16px;
+      background-color: #f44336;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9em;
+      transition: all 0.3s ease;
+    }
+
+    .exit-btn:hover {
+      background-color: #d32f2f;
+      transform: translateY(-2px);
+    }
+
+    @media (max-width: 600px) {
+      .game-container {
+        padding: 20px 15px;
+      }
+
+      .game-content {
+        padding: 20px;
+      }
+
+      .options {
+        grid-template-columns: 1fr;
+      }
+
+      .context {
+        font-size: 1.1em;
+        padding: 15px;
+      }
+
+      .option-btn {
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <div class="game-header">
+      <div class="game-controls">
+        <div class="score">점수: <span id="score">0</span></div>
+        <div class="timer">시간: <span id="timer">60</span>초</div>
+      </div>
+      <button class="exit-btn" onclick="exitGame()">게임 나가기</button>
+    </div>
+    <div class="game-content">
+      <div class="context" id="context"></div>
+      <div class="question" id="question"></div>
+      <div class="options" id="options"></div>
+    </div>
+  </div>
+
+  <script>
+    let questions = [];
+    let currentQuestion = 0;
+    let score = 0;
+    let timeLeft = 60;
+    let timer;
+    let userAnswers = new Map();
+
+    async function fetchQuestions() {
+      try {
+        const response = await fetch('/api/gamewords?source=mywords&count=10', { credentials: 'include' });
+        const wordList = await response.json();
+        
+        if (!Array.isArray(wordList) || wordList.length === 0) {
+          throw new Error('단어를 불러오지 못했습니다.');
+        }
+
+        questions = await Promise.all(wordList.map(async (word) => {
+          try {
+            const detailRes = await fetch(`/api/details/${word.id}`);
+            const detail = await detailRes.json();
+            const example = detail.example || "";
+            
+            if (!example) return null;
+            
+            const otherWords = wordList.filter(w => w.word !== word.word);
+            const randomWords = shuffle(otherWords).slice(0, 3).map(w => w.word);
+            
+            return {
+              word_id: word.id,
+              word: word.word,
+              meaning: word.meaning,
+              context: example,
+              question: "빈칸에 들어갈 단어는?",
+              options: shuffle([word.word, ...randomWords]),
+              correct_answer: word.word
+            };
+          } catch (error) {
+            return null;
+          }
+        }));
+
+        questions = questions.filter(q => q !== null);
+
+        if (questions.length > 0) {
+          startGame();
+        } else {
+          throw new Error('문제를 생성하지 못했습니다.');
+        }
+      } catch (error) {
+        alert('문제를 불러오는데 실패했습니다: ' + error.message);
+      }
+    }
+
+    function startGame() {
+      score = 0;
+      currentQuestion = 0;
+      timeLeft = 60;
+      document.getElementById('score').textContent = score;
+      document.getElementById('timer').textContent = timeLeft;
+      
+      showQuestion();
+      startTimer();
+    }
+
+    function showQuestion() {
+      if (currentQuestion >= questions.length) {
+        endGame();
+        return;
+      }
+
+      const question = questions[currentQuestion];
+      const regex = new RegExp(`\\b(${question.correct_answer}\\w*)\\b`, 'gi');
+      const blankedContext = question.context.replace(regex, '_____');
+      
+      document.getElementById('context').textContent = blankedContext;
+      document.getElementById('question').textContent = question.question;
+
+      const optionsContainer = document.getElementById('options');
+      optionsContainer.innerHTML = '';
+
+      question.options.forEach(option => {
+        const button = document.createElement('button');
+        button.className = 'option-btn';
+        button.textContent = option;
+        button.onclick = () => checkAnswer(option);
+        optionsContainer.appendChild(button);
+      });
+    }
+
+    function checkAnswer(selectedOption) {
+      const question = questions[currentQuestion];
+      const buttons = document.querySelectorAll('.option-btn');
+      
+      buttons.forEach(button => {
+        button.disabled = true;
+        if (button.textContent === question.correct_answer) {
+          button.classList.add('correct');
+        } else if (button.textContent === selectedOption && selectedOption !== question.correct_answer) {
+          button.classList.add('wrong');
+        }
+      });
+
+      if (selectedOption === question.correct_answer) {
+        score += 1;
+        document.getElementById('score').textContent = score;
+      }
+
+      userAnswers.set(currentQuestion, selectedOption);
+
+      setTimeout(() => {
+        currentQuestion++;
+        showQuestion();
+      }, 1000);
+    }
+
+    function startTimer() {
+      timer = setInterval(() => {
+        timeLeft--;
+        document.getElementById('timer').textContent = timeLeft;
+        
+        if (timeLeft <= 0) {
+          endGame();
+        }
+      }, 1000);
+    }
+
+    function endGame() {
+      clearInterval(timer);
+      
+      // 각 문제의 결과를 저장
+      const resultData = questions.map((q, index) => {
+        const userAnswer = userAnswers.get(index) || "미응답";
+        const isCorrect = userAnswer === q.correct_answer;
+        return {
+          word_id: q.word_id,
+          word: q.word,
+          meaning: q.meaning,
+          context: q.context,
+          correct: isCorrect,
+          userAnswer: userAnswer,
+          gameMode: 'context'
+        };
+      });
+
+      localStorage.setItem("testResult", JSON.stringify(resultData));
+      localStorage.setItem("testSource", "game");
+      window.location.href = 'testresult.html';
+    }
+
+    function exitGame() {
+      if (confirm('정말 게임을 종료하시겠습니까?')) {
+        clearInterval(timer);
+        window.location.href = 'gamestart.html';
+      }
+    }
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    fetchQuestions();
+  </script>
+</body>
+</html>
