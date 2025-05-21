@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>EnPick - 홈</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litepicker/dist/css/litepicker.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="css/home.css" />
+</head>
+<body>
+  <!-- 상단 바 -->
+  <nav class="nav-bar">
+    <div class="nav-logo">
+      <img src="assets/enpick-logo.png" alt="EnPick 로고" />
+      <h2>EnPick</h2>
+    </div>
+    <div class="nav-user">
+      <!-- 관리자 계정만 표시되는 추가 버튼 -->
+      <a href="#" id="logoutBtn" class="logout-btn">로그아웃</a>
+    </div>
+    <div class="hamburger" id="hamburger">&#9776;</div>
+  </nav>
+
+  <!-- 사이드바 -->
+  <div class="sidebar">
+    <a href="home.html" class="menu-item active">홈</a>
+    <a href="vocabulary.html" class="menu-item">전체 단어장</a>
+    <a href="mywords.html" class="menu-item">My 단어장</a>
+    <a href="study.html" class="menu-item">학습</a>
+    <a href="gamestart.html" class="menu-item">단어 미니 게임</a>
+    <a href="teststart.html" class="menu-item">테스트</a>
+    <a href="#" class="menu-item">통계</a>
+  </div>
+
+  <!-- 메인 콘텐츠 -->
+  <div class="main-content">
+    <h1>학습 대시보드</h1>
+    
+    <!-- 통계 카드 -->
+    <div class="stats-container">
+      <div class="stat-card">
+        <h3>오늘 학습한 단어</h3>
+        <div class="number">0</div>
+      </div>
+      <div class="stat-card">
+        <h3>누적 학습 단어</h3>
+        <div class="number">0</div>
+      </div>
+      <div class="stat-card">
+        <h3>학습 완료율</h3>
+        <div class="number">0%</div>
+      </div>
+    </div>
+
+    <div class="mission-grid">
+        <!-- 출석체크 -->
+        <div class="attendance-container">
+          <div class="attendance-panel">
+            <h3>출석 체크</h3>
+            <div id="calendar" class="attendance-calendar"></div>
+            <p id="streakText" class="streak-text">연속 출석 <span class="streak-count">0</span>일</p>
+            <button id="attendanceBtn">오늘 출석하기</button>
+          </div>
+        </div>
+
+
+        <!-- 오늘의 학습 미션 -->
+        <div class="mission-card mission-tasks-card">
+        <h2>오늘의 학습 미션</h2>
+        <div id="mission-list">
+            <!--동적 생성-->
+        </div>
+        <div class="mission-progress">
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="missionProgressBar"></div>
+            </div>
+            <div class="progress-text">
+                <span class="current">0%</span>
+                <span>목표: 100%</span>
+            </div>
+        </div>
+        </div>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/litepicker/dist/litepicker.js"></script>
+  <script>
+    let userId;
+    let calendarInstance = null;
+    // 사용자 이름 표시
+    document.addEventListener('DOMContentLoaded', () => {
+
+      fetch('/api/me', { credentials: 'include' })
+        .then(res => {
+          if (!res.ok) throw new Error();
+          return res.json();
+        })
+        .then(user => {
+            userId = user.id;
+          // 예: 사용자 이메일 표시
+          const userSpan = document.createElement('span');
+          userSpan.textContent = `${user.email}님`;
+          document.querySelector('.nav-user')?.prepend(userSpan);
+
+          // 관리자면 버튼 보이기
+          if (user.role === 'admin') {
+            const adminBtn = document.createElement('a');
+            adminBtn.href = 'admin.html';
+            adminBtn.className = 'logout-btn';
+            adminBtn.textContent = '관리자 페이지';
+            document.querySelector('.nav-user')?.prepend(adminBtn);
+          }
+          fetch('/api/init-daily', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId })
+            })
+            .then(() => {
+            loadAttendanceCalendar(userId);
+            setupAttendanceButton(userId);
+            return loadDailyMissions(userId); 
+            })
+            .then(() => {
+              checkReviewStatusAndIcons(userId);
+            })
+            .catch(err => console.error('init-daily 오류:', err));
+
+        })
+        .catch(() => {
+          alert('로그인이 필요합니다.');
+          window.location.href = 'login.html';
+        });
+
+      // 로그아웃 버튼
+      document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+        try {
+          await fetch('/logout', {
+            method: 'POST',
+            credentials: 'include'
+          });
+        } catch (err) {
+          console.error('서버 로그아웃 실패:', err);
+        }
+
+        // localStorage 정보 삭제
+        localStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('userRole');
+
+        // 로그인 페이지로 이동
+        window.location.href = 'login.html';
+      });
+
+        function loadAttendanceCalendar(userId) {
+          fetch(`/api/attendance?user_id=${userId}`)
+            .then(res => res.json())
+            .then(dates => {
+              const el = document.getElementById('calendar');
+              if (!el) return;
+
+              const tsList = dates.map(ds => new Date(ds + 'T00:00:00').getTime());
+              const applyHighlights = () => {
+                tsList.forEach(ts => {
+                  const dayCell = el.querySelector(`.day-item[data-time="${ts}"]`);
+                  if (dayCell) dayCell.classList.add('is-highlighted');
+                });
+              };
+
+              if (!calendarInstance) {
+                calendarInstance = new Litepicker({
+                  inlineMode: true,
+                  lang: 'en-US',
+                  element: el,
+                  parentEl: el,
+                  tooltipText: { one: '출석한 날' },
+                  tooltipPosition: 'top',
+                  highlightedDates: tsList
+                });
+                // 월이 바뀔 때마다 실행
+                calendarInstance.on('render', applyHighlights);
+              } else {
+                calendarInstance.setOptions({ highlightedDates: tsList });
+              }
+              calendarInstance.render();
+              applyHighlights();
+
+              // 오늘이 출석된 날인지 상태 갱신
+              const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
+              const already = dates.includes(today);
+              const attendanceBtn = document.getElementById('attendanceBtn');
+
+              attendanceBtn.disabled = already;
+              attendanceBtn.textContent = already ? '오늘 출석 완료' : '오늘 출석하기';
+
+              // 연속 출석 계산
+              const streak = calculateStreak(dates);
+              document.getElementById('streakText').innerHTML= `연속 출석 <span class="streak-count">${streak}</span>일`;
+            });
+        }
+
+        function setupAttendanceButton(userId) {
+          document.getElementById('attendanceBtn')?.addEventListener('click', () => {
+            fetch('/api/attendance', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ user_id: userId })
+            })
+            .then(res => {
+              if (!res.ok) throw new Error();
+              const attendanceBtn = document.getElementById('attendanceBtn');
+              attendanceBtn.textContent = '오늘 출석 완료';
+              attendanceBtn.disabled = true;
+
+              // 연속 출석 일수도 즉시 +1
+              const streakElem = document.querySelector('.streak-count');
+              if (streakElem) {
+                const current = parseInt(streakElem.textContent, 10) || 0;
+                streakElem.textContent = current + 1;
+              }
+
+              alert('출석 완료!');
+              loadAttendanceCalendar(userId);
+              loadDailyMissions(userId);
+              checkReviewStatusAndIcons(userId);
+            })
+            .catch(() => alert('출석 실패 또는 이미 출석함'));
+          });
+        }
+
+        function createReviewBox() {
+            const box = document.createElement('div');
+            box.id = 'review-words-box';
+
+            const title = document.createElement('h3');
+            title.textContent = '복습할 단어';
+            box.appendChild(title);
+
+            return box;
+        }
+
+
+        function loadDailyMissions(userId) {
+        return fetch(`/api/daily-missions?user_id=${userId}`)
+            .then(res => res.json())
+            .then(missions => {
+            const list = document.getElementById('mission-list');
+            list.innerHTML = '';
+
+            const missionsData = [
+                { id: 'attendance', label: '출석 체크' },
+                { id: 'review', label: '단어 복습' },
+                { id: 'test', label: '매일 테스트 1회 (정답률 50% 이상)' },
+                { id: 'game', label: '게임 1회 (정답률 70% 이상)' }
+            ];
+
+            let completedCount = 0;
+            missionsData.forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'mission-item';
+
+                const isCompleted = missions[m.id];
+                if (isCompleted) {
+                    div.classList.add('completed');
+                    completedCount++;
+                }
+                const iconClass = isCompleted
+                    ? 'fa-solid fa-square-check'
+                    : 'fa-solid fa-square-xmark';
+                if (m.id === 'review') {
+                    div.classList.add('review-mission');
+
+                    // 상단 헤더 (박스 밖)
+                    const header = document.createElement('div');
+                    header.className = 'review-mission-header';
+                    header.innerHTML = `<i class="${iconClass}" style="margin-right:8px;"></i> ${m.label}
+                          <i class="fa-solid fa-circle-info info-icon" tabindex="0"></i>
+                          <div class="info-tooltip" style="display:none;">
+                            My단어장에서 최신 추가 단어 위주로 선별되며,<br>
+                            부족할 경우 전체 단어장에서 랜덤 제공됩니다.<br><br>
+                            복습하기는 모든 단어의 카드를 뒤집어서<br>
+                            단어와 뜻을 학습해야 성공으로 인정됩니다.<br><br>
+                            테스트하기는 정답률 50% 이상이어야<br>
+                            성공으로 인정됩니다.
+                          </div>`;
+                    div.appendChild(header);
+
+                    // 뱃지 박스 (스크롤 가능 영역)
+                    const innerBox = document.createElement('div');
+                    innerBox.className = 'review-inner-box';
+                    innerBox.innerHTML = `
+                      <ul class="review-words-list" id="review-words-list">
+                        <li>불러오는 중...</li>
+                      </ul>
+                    `;
+                    div.appendChild(innerBox);
+
+                    // 버튼은 박스 아래
+                    const btns = document.createElement('div');
+                    btns.className = 'review-actions';
+                    btns.innerHTML = `
+                      <i id="reviewStudyIcon" class="fa-solid fa-square-xmark"></i><button onclick="startReviewStudy()">복습하기</button>
+                      <i id="reviewTestIcon" class="fa-solid fa-square-xmark"></i><button onclick="startReviewTest()">테스트하기</button>
+                    `;
+                    div.appendChild(btns);
+
+                    list.appendChild(div);
+                    loadReviewWords(userId);
+                } else {
+                    div.innerHTML = `<label><i class="${iconClass}" style="margin-right:8px;"></i> ${m.label}</label>`;
+                    if (m.id === 'test') {
+                        div.style.cursor = 'pointer';
+                        div.addEventListener('click', () => {
+                            window.location.href = 'teststart.html';
+                        });
+                    } else if (m.id === 'game') {
+                        div.style.cursor = 'pointer';
+                        div.addEventListener('click', () => {
+                            window.location.href = 'gamestart.html';
+                        });
+                    }
+                    list.appendChild(div);
+                }
+            });
+
+            // 프로그레스 바 업데이트
+            updateProgressBar(completedCount, missionsData.length);
+            });
+        }
+
+        function loadReviewWords(userId) {
+          fetch(`/api/review-words?user_id=${userId}`)
+            .then(res => res.json())
+            .then(data => {
+              const ul = document.getElementById('review-words-list');
+              if (!ul) return;
+              ul.innerHTML = '';
+
+              if (!data.words || data.words.length === 0) {
+                const li = document.createElement('li');
+                li.textContent = '복습할 단어가 없습니다.';
+                ul.appendChild(li);
+              } else {
+                data.words.forEach(w => {
+                  const badge = document.createElement('a');
+                  badge.className = 'word-badge';
+                  badge.href = `seemore.html?wordId=${w.word_id}`;
+                  badge.innerHTML = `${w.word} - ${w.meaning} <em style="font-style: italic;">(${w.part_of_speech})</em>`;
+                  ul.appendChild(badge);
+                });
+              }
+            });
+        }
+
+        function updateProgressBar(completed, total) {
+            const progressBar = document.getElementById('missionProgressBar');
+            const progressText = document.querySelector('.progress-text .current');
+            const percentage = Math.round((completed / total) * 100);
+            
+            progressBar.style.width = `${percentage}%`;
+            progressText.textContent = `${percentage}%`;
+        }
+
+    });
+
+    function calculateStreak(dates) {
+      // 날짜 문자열 배열에서 오늘/어제부터 연속으로 포함된 날을 셉니다.
+      const today = new Date(Date.now() + 9 * 60 * 60 * 1000);
+      const todayStr = today.toISOString().split('T')[0];
+      let streak = 0;
+      let cursor = new Date(today);
+
+      // 오늘 출석 전이면, 내일(=오늘) 대신 어제부터 시작
+      if (!dates.includes(todayStr)) {
+        cursor.setDate(cursor.getDate() - 1);
+      }
+
+      // 과거로 거슬러가며 dates에 있으면 카운트
+      while (true) {
+        const dateStr = cursor.toISOString().split('T')[0];
+        if (dates.includes(dateStr)) {
+          streak++;
+          cursor.setDate(cursor.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+      return streak;
+    }
+
+    function startReviewTest() {
+      localStorage.setItem("testSource", "review");
+      location.href = 'test.html?type=review&source=review&count=30';
+    }
+    function startReviewStudy() {
+      location.href = 'study.html?type=review';
+    }
+
+    document.addEventListener('click', (e) => {
+      document.querySelectorAll('.info-tooltip').forEach(t => t.style.display = 'none');
+
+      if (e.target.classList.contains('info-icon')) {
+        const tooltip = e.target.nextElementSibling;
+        if (tooltip) {
+          tooltip.style.display = 'block';
+        }
+      }
+    });
+
+    document.addEventListener('mouseover', (e) => {
+      if (e.target.classList.contains('info-icon')) {
+        const tooltip = e.target.nextElementSibling;
+        if (tooltip) tooltip.style.display = 'block';
+      }
+    });
+
+    document.addEventListener('mouseout', (e) => {
+      if (e.target.classList.contains('info-icon')) {
+        const tooltip = e.target.nextElementSibling;
+        if (tooltip) tooltip.style.display = 'none';
+      }
+    });
+
+
+    function checkReviewStatusAndIcons(userId) {
+      const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+      fetch(`/api/daily-missions?user_id=${userId}&date=${today}`, { credentials:'include' })
+        .then(res => res.json())
+        .then(data => {
+        const studied = Boolean(data.reviewstudy);
+        const tested  = Boolean(data.reviewtest);
+        updateReviewStatusIcons({ studied, tested });
+      })
+        .catch(err => console.error('미션 상태 조회 실패:', err));
+    }
+
+    function updateReviewStatusIcons({ studied, tested }) {
+      const studyIcon = document.getElementById('reviewStudyIcon');
+      const testIcon = document.getElementById('reviewTestIcon');
+      const missionIcon = document.querySelector('.review-mission-header i');
+
+      if (studyIcon){
+        studyIcon.className = studied
+          ? 'fa-solid fa-square-check'
+          : 'fa-solid fa-square-xmark';
+        studyIcon.style.color = studied ? '#4CAF50' : '#888';
+      }
+      if (testIcon){
+        testIcon.className = tested
+          ? 'fa-solid fa-square-check'
+          : 'fa-solid fa-square-xmark';
+        testIcon.style.color = tested ? '#4CAF50' : '#888';
+      }
+      const completed = studied && tested;
+
+      if (missionIcon){
+        missionIcon.className = completed
+          ? 'fa-solid fa-square-check'
+          : 'fa-solid fa-square-xmark';
+        missionIcon.style.color = (studied && tested) ? '#4CAF50' : '#888';
+      }
+      if (completed) {
+        fetch('/api/mission-complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: userId,
+            mission_type: 'review'
+          })
+        });
+      }
+    }
+
+
+
+    document.getElementById('hamburger')?.addEventListener('click', () => {
+      document.querySelector('.sidebar')?.classList.toggle('show');
+    });
+
+
+  </script>
+</body>
+</html>
