@@ -211,6 +211,26 @@
     }
 
     function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
+    // 추가 isKorean *수정 
+    function isKorean(text) {
+      return /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(text);
+    }
+    // 영어 판별 함수
+    function isEnglish(text) {
+      return /^[a-zA-Z]+$/.test(text.replace(/\s/g, ''));
+    }
+    // 점수 반영 함수
+    function getScore() {
+      // userAnswers에 정답(w.word, 즉 영어 원형)이 저장되어 있다면 정답으로 간주
+      let score = 0;
+      sample.forEach((w, idx) => {
+        if (userAnswers[idx] === w.word) {
+          score += 2; // 한 쌍당 2점
+        }
+      });
+      return score;
+    }
+
 
     /* Block Puzzle 모드 */
     function loadBlockPuzzle() {
@@ -291,21 +311,56 @@
   // 카드 클릭 이벤트
   cards.forEach((item, cardIdx) => {
     const card = document.createElement('div');
-    card.className = 'card';
-    card.textContent = item.text;
-    card.dataset.pair = item.pair;
-    card.dataset.selected = "false";
-    card.addEventListener('click', () => {
-      // 이미 선택된(짝지어진) 카드는 클릭 불가
-      if (card.classList.contains('selected')) return;
-      card.classList.add('selected');
-      card.dataset.selected = "true";
-      selected.push(card);
+  card.className = 'card';
+  card.textContent = item.text;
+  card.dataset.pair = item.pair;
+  card.dataset.selected = "false";
 
-      if (selected.length === 2) {
-        const [a, b] = selected;
+  card.addEventListener('click', () => {
+    // [수정] matched여도 선택 해제 가능하게
+    if (card.classList.contains('selected')) {
+      card.classList.remove('selected');
+      card.dataset.selected = "false";
+      selected = selected.filter(c => c !== card);
+      // [추가] matched도 함께 해제
+      if (card.classList.contains('matched')) {
+        card.classList.remove('matched');
+        // userAnswers도 초기화
+    const wordValue = card.textContent;
+    const globalIdx = wordList.findIndex(item => item.word === wordValue);
+    if (globalIdx !== -1) userAnswers[globalIdx] = "미응답";
+      }
+      return;
+    }
+    // [수정] matched 카드도 선택 가능(재도전)
+    // (아예 matched여도 막지 않음)
 
-        
+    // [★ 두 개까지 선택 가능]
+    if (selected.length === 2) return;
+
+    // [★ 언어 구분: 한글-영어만 허용]
+    if (selected.length === 1) {
+      const prev = selected[0];
+      const prevIsKor = isKorean(prev.textContent);
+      const nowIsKor = isKorean(card.textContent);
+      if (prevIsKor === nowIsKor) {
+        // 둘 다 한글이거나 둘 다 영어면 선택 불가!
+        return;
+      }
+    }
+
+    card.classList.add('selected');
+    card.dataset.selected = "true";
+    selected.push(card);
+
+    if (selected.length === 2) {
+      const [a, b] = selected;
+      // [수정] 매칭 체크 (정답/오답 처리)
+      if (a.dataset.pair === b.textContent && b.dataset.pair === a.textContent) {
+        a.classList.add('matched');
+        b.classList.add('matched');
+      } 
+
         // 답안 기록 (영어가 포함된 카드를 userAnswers에 저장) *수정
         sample.forEach((w, idx) => {
           const globalIdx = wordList.findIndex(item => item.word === w.word);
@@ -313,14 +368,14 @@
              if (a.dataset.pair === b.textContent && b.dataset.pair === a.textContent) {
            userAnswers[globalIdx] = w.word; // 정답
              } else {
-      userAnswers[globalIdx] = a.textContent === w.word ? b.textContent : a.textContent; // 오답(사용자 입력)
+        // 오답도 영어로 저장
+          let answerText = '';
+          if (isEnglish(a.textContent)) answerText = a.textContent;
+          else if (isEnglish(b.textContent)) answerText = b.textContent;
+          userAnswers[globalIdx] = answerText;
             }
           }
         });
-
-        // 오답이어도 둘 다 "selected" 상태로 남김!
-        // (아래 setTimeout 삭제, 아무 동작 X)
-
         selected = [];
         // 모든 카드가 선택되었으면 "다음" 버튼 표시
         if (cont.querySelectorAll('.selected').length === cards.length) {
@@ -331,6 +386,7 @@
     cont.appendChild(card);
       });
     }
+    
 
     document.getElementById('nextBtn').addEventListener('click', () => {
       current++;
