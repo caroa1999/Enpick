@@ -287,7 +287,6 @@
   const cont = document.getElementById('matchingContainer');
   cont.innerHTML = '';
   let selected = [];
-  userAnswers = []; // set마다 초기화
 
   // 카드 클릭 이벤트
   cards.forEach((item, cardIdx) => {
@@ -356,6 +355,17 @@
       if (durations.length > 0) {
         const total = durations.reduce((sum, t) => sum + parseFloat(t), 0);
         avgTime = (total / durations.length).toFixed(2);
+      }
+       // --- [추가] 정답률 계산 및 미션 완료 API 호출
+        const correctRate = score / wordList.length;
+        if (correctRate >= 0.7) {
+        fetch('/api/missions/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ missionType: 'game' })  // ← 실제 DB 값 그대로 사용!
+        });
+       
       }
 
       document.getElementById('gameCard').innerHTML = `
