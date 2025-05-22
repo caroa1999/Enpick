@@ -21,6 +21,8 @@ const transporter = nodemailer.createTransport({ //이메일 세팅
   }
 });
 
+
+
 app.use(cors());
 
 app.use(bodyParser.urlencoded({ extended: true })); //요청 본문 파싱으로 이 코드가 없으면 로그인 기능이 작동하지 않음음
@@ -32,6 +34,9 @@ app.use(session({
   resave: false,
   saveUninitialized: false
 }));
+app.use(express.json());
+app.use('/api/dailytest', require('./routes/dailytest'));
+
 
 // MySQL과 연결
 const db = mysql.createConnection({
@@ -59,7 +64,8 @@ app.get('/', (req, res) => { //local:3000 접속시 진입점을 설정
   });
 });
 
-app.post('/signup', async (req, res) => { //회원가입 요청시 실행되는 코드
+// *수정
+app.post('/signup', async (req, res) => {
   const { full_name, email, password } = req.body;
 
   if (!full_name || !email || !password) {
@@ -67,23 +73,49 @@ app.post('/signup', async (req, res) => { //회원가입 요청시 실행되는 
   }
 
   try {
-    const hashedPassword = await bcrypt.hash(password, 10); //
-    db.query(
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // 회원 정보 삽입
+    const [result] = await db.promise().query(
       'INSERT INTO users (full_name, email, password) VALUES (?, ?, ?)',
-      [full_name, email, hashedPassword],
-      (err) => {
-        if (err) {
-          console.error('회원가입 DB 삽입 오류:', err);
-          return res.redirect('/signup.html?error=' + encodeURIComponent('Email already exists or server error.'));
-        }
-        res.redirect('/login.html');
-      }
+      [full_name, email, hashedPassword]
     );
-  } catch (e) {
-    console.error('회원가입 중 서버 에러:', e);
-    return res.redirect('/signup.html?error=' + encodeURIComponent('Internal server error.'));
+
+    // 새로 생성된 사용자 ID
+    const userId = result.insertId;
+// 오늘 날짜로 미션 삽입
+const today = new Date().toISOString().slice(0, 10);
+
+// 중복 제거된 미션 타입 배열
+const missionTypes = [
+  'attendance', 'balloon', 'block', 'context',
+  'game', 'matching', 'quiz', 'review',
+  'reviewstudy', 'reviewtest', 'test',
+  'context', 'quiz', 'matching', 'block', 'balloon'  // ← 중복 있음
+];
+
+// ✅ 중복 제거된 유일한 목록 생성
+const uniqueTypes = [...new Set(missionTypes)];
+
+// ✅ 중복 없는 INSERT 문 생성
+const values = uniqueTypes.map(type => `(${userId}, '${today}', '${type}', false)`).join(', ');
+
+// ✅ 중복이면 update 처리
+await db.promise().query(`
+  INSERT INTO mission_logs (user_id, date, mission_type, completed)
+  VALUES ${values}
+  ON DUPLICATE KEY UPDATE completed = VALUES(completed);
+`);
+
+    // 회원가입 성공 후 로그인 페이지로 이동
+    res.redirect('/login.html');
+    
+  } catch (err) {
+    console.error('회원가입 에러:', err);
+    return res.redirect('/signup.html?error=' + encodeURIComponent('Email already exists or server error.'));
   }
 });
+
 
 app.post('/login', async (req, res) => { //수정됨: 로그인 에러메세지 출력 위해 수정, json방식 이용
   const { email, password } = req.body;
@@ -101,11 +133,12 @@ app.post('/login', async (req, res) => { //수정됨: 로그인 에러메세지 
       const match = await bcrypt.compare(password, user.password);
 
       if (match) {
-        req.session.user = user;
+        req.session.user = user;  // 세션에 사용자 저장
         res.status(200).json({
           success: true,
           role: user.role,
-          name: user.full_name
+          name: user.full_name,
+          userId: user.id   
         });
       } else {
         res.status(401).json({ success: false, message: 'Incorrect Password' });
@@ -763,9 +796,22 @@ app.post('/api/init-daily', async (req, res) => {
         const gameMissions = ['context', 'quiz', 'matching', 'block', 'balloon'];
         const gameLogs = gameMissions.map(m => [userId, today, m, false]);
         
-        await db.promise().query(
-          'INSERT INTO mission_logs (user_id, date, mission_type, completed) VALUES ?',
-          [logs.concat(gameLogs)]
+// ✅ 전체를 합친 후 중복 제거
+  const combined = [...logs, ...gameLogs];
+
+  // ✅ mission_type 기준으로 중복 제거
+  const seen = new Set();
+  const uniqueLogs = combined.filter(([_, __, missionType]) => {
+    if (seen.has(missionType)) return false;
+    seen.add(missionType);
+    return true;
+  });
+
+
+        // ✅ 중복 제거된 logs로 INSERT
+await db.promise().query(
+  'INSERT INTO mission_logs (user_id, date, mission_type, completed) VALUES ?',
+  [uniqueLogs]
         );
       }
     }
@@ -1075,6 +1121,25 @@ app.get('/api/random-words', (req, res) => {
     res.json({ words });
   });
 });
+
+app.get('/api/dailytest/history', async (req, res) => {
+  const userId = req.session?.user?.id || req.query.user_id;
+
+  if (!userId) {
+    return res.status(401).json({ success: false, message: 'Not logged in' });
+  }
+
+  const [rows] = await db.promise().query(`
+    SELECT date, accuracy
+    FROM daily_test_result
+    WHERE user_id = ?
+    ORDER BY date DESC
+    LIMIT 7
+  `, [userId]);
+
+  res.json(rows.reverse()); // 최신→과거순 → 과거→최신순으로 정렬
+});
+
 
 app.listen(port, () => {
   console.log(`서버가 http://localhost:${port} 에서 실행 중`);
