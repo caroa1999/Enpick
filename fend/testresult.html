@@ -227,6 +227,7 @@
             })
           });
         }
+
       
         if (source === 'level') {
           const diffStats = {}; // {600: {correct: 0, total: 0}, ...}
@@ -256,6 +257,23 @@
 
           document.getElementById("summary").innerHTML += summaryHtml;
         }
+          // *추가
+      if (source === 'daily') {
+  // 랭킹용 정답률 저장
+  fetch('/api/dailytest/submit', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    user_id: window.userId,
+    correct_count: correctCount,       // 맞힌 문제수
+    total_count: totalCount,           // 전체 문제수
+    accuracy: Number(accuracy)         // 정답률 (예: 86.67)
+  })
+}).then(res => {
+  if (!res.ok) throw new Error("랭킹 저장 실패");
+  // 성공시 추가 처리도 가능
+});;
+}
       });
 
 

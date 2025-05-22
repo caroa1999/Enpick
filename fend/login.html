@@ -68,11 +68,13 @@
       });
 
       const result = await response.json();
+      console.log('서버 응답:', result); // 👈 이 줄 추가
 
       if (response.ok && result.success) {
         localStorage.setItem('isLoggedIn', 'true');
         localStorage.setItem('userRole', result.role);
         localStorage.setItem('userName', result.name);
+        localStorage.setItem('userId', result.userId);
         window.location.href = 'home.html';
       } else {
         document.getElementById('error-message').textContent = result.message || '로그인 실패';

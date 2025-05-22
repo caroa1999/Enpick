@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EnPick - 정답률 랭킹</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .rank-wrapper {
+      margin-left: 220px;
+      padding: 40px;
+      padding-top: 80px;
+    }
+    .rank-container {
+      max-width: 600px;
+      margin: auto;
+      background: #f9f9ff;
+      padding: 32px;
+      border-radius: 16px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 16px;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+    th {
+      background-color: #6c80ff;
+      color: white;
+    }
+    .my-rank-row {
+      background-color: #dbeafe;
+      font-weight: bold;
+    }
+    #accuracyChart {
+      margin-top: 40px;
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav-bar">
+    <div class="nav-logo">
+      <img src="assets/enpick-logo.png" alt="EnPick 로고" />
+      <h2>EnPick</h2>
+    </div>
+    <div class="nav-user">
+      <a href="#" id="logoutBtn" class="logout-btn">로그아웃</a>
+    </div>
+    <div class="hamburger" id="hamburger">&#9776;</div>
+  </nav>
+
+  <div class="sidebar" id="sidebar">
+    <a href="home.html" class="menu-item">홈</a>
+    <a href="vocabulary.html" class="menu-item">전체 단어장</a>
+    <a href="mywords.html" class="menu-item">My 단어장</a>
+    <a href="study.html" class="menu-item">학습</a>
+    <a href="gamestart.html" class="menu-item">단어 미니 게임</a>
+    <a href="teststart.html" class="menu-item">테스트</a>
+    <a href="ranking.html" class="menu-item active">랭킹</a>
+  </div>
+
+  <div class="rank-wrapper">
+    <div class="rank-container">
+      <h2 style="text-align:center;">📊 오늘의 정답률 랭킹 TOP 10</h2>
+      <table>
+        <thead>
+          <tr><th>순위</th><th>사용자</th><th>정답률(%)</th></tr>
+        </thead>
+        <tbody id="rankingBody"></tbody>
+      </table>
+      <h3 style="text-align:center; margin-top: 30px;">📈 최근 7일간 내 정답률 변화</h3>
+      <canvas id="accuracyChart" width="400" height="200"></canvas>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById("hamburger")?.addEventListener("click", () => {
+      document.getElementById("sidebar")?.classList.toggle("show");
+    });
+
+    const myUserId = localStorage.getItem('userId');
+
+    fetch('/api/dailytest/rank')
+      .then(res => res.json())
+      .then(rankList => {
+        const tbody = document.getElementById('rankingBody');
+        tbody.innerHTML = '';
+
+        rankList.forEach((item, idx) => {
+          const userLabel = item.nickname || maskEmail(item.email);
+          const isMe = String(item.user_id) === String(myUserId);
+
+          const tr = document.createElement('tr');
+          if (isMe) tr.classList.add('my-rank-row');
+
+          tr.innerHTML = `
+            <td>${idx + 1}</td>
+            <td>${userLabel}</td>
+            <td>${item.accuracy.toFixed(2)}%</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      });
+
+    fetch('/api/dailytest/history?user_id=' + myUserId)
+      .then(res => res.json())
+      .then(data => {
+        const labels = data.map(d => d.date);
+        const values = data.map(d => d.accuracy);
+
+        const ctx = document.getElementById('accuracyChart').getContext('2d');
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: '정답률 변화 (%)',
+              data: values,
+              borderColor: 'blue',
+              fill: false,
+              tension: 0.1
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: {
+                min: 0,
+                max: 100
+              }
+            }
+          }
+        });
+      });
+
+    function maskEmail(email) {
+      if (!email) return '';
+      const [name, domain] = email.split('@');
+      return name.slice(0, 3) + '****@' + domain;
+    }
+
+    // 로그아웃 처리 및 사용자 정보 표시
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const res = await fetch('/api/me', { credentials: 'include' });
+        if (!res.ok) throw new Error();
+        const user = await res.json();
+
+        const userSpan = document.createElement('span');
+        userSpan.textContent = `${user.email}님`;
+        document.querySelector('.nav-user')?.prepend(userSpan);
+
+        document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+          await fetch('/logout', {
+            method: 'POST',
+            credentials: 'include'
+          });
+          localStorage.clear();
+          window.location.href = 'login.html';
+        });
+      } catch (err) {
+        alert('로그인이 필요합니다.');
+        window.location.href = 'login.html';
+      }
+    });
+  </script>
+</body>
+</html>

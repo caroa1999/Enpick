@@ -219,12 +219,12 @@
     function isEnglish(text) {
       return /^[a-zA-Z]+$/.test(text.replace(/\s/g, ''));
     }
-    // 점수 반영 함수
+    // 정답 쌍마다 2점씩 점수 계산
     function getScore() {
       // userAnswers에 정답(w.word, 즉 영어 원형)이 저장되어 있다면 정답으로 간주
       let score = 0;
-      sample.forEach((w, idx) => {
-        if (userAnswers[idx] === w.word) {
+       userAnswers.forEach((ans, idx) =>  {
+        if (ans === wordList[idx].word) {
           score += 2; // 한 쌍당 2점
         }
       });
@@ -265,8 +265,6 @@
             const ok = selected.toLowerCase() === w.word.toLowerCase();
             document.getElementById('result').textContent = ok ? '정답입니다!' : `오답! 정답: ${w.word}`;
             if (ok) score++;
-            document.getElementById('score').textContent = score;
-            document.getElementById('nextBtn').style.display = 'inline-block';
              // --- 추가: 사용자의 실제 입력 저장
             userAnswers[current] = selected;
           }
@@ -289,103 +287,93 @@
       container.appendChild(cancelBtn);
     }
 
-    /* Matching 모드 */
-    function loadMatchingGame() {
-  startTime = Date.now();
-  document.getElementById('meaning').style.display = 'none';
-  document.getElementById('answerArea').style.display = 'none';
-  document.getElementById('blocksContainer').style.display = 'none';
-  document.getElementById('matchingContainer').style.display = 'flex';
-  document.getElementById('result').textContent = '';
-  document.getElementById('nextBtn').style.display = 'none';
-  document.getElementById('currentIndex').textContent = current + 1;
+    /* Matching 모드  => 짝 맞추기 */
+function loadMatchingGame() {
+    startTime = Date.now();
+    document.getElementById('meaning').style.display = 'none';
+    document.getElementById('answerArea').style.display = 'none';
+    document.getElementById('blocksContainer').style.display = 'none';
+    document.getElementById('matchingContainer').style.display = 'flex';
+    document.getElementById('result').textContent = '';
+    document.getElementById('nextBtn').style.display = 'none';
+    document.getElementById('currentIndex').textContent = current + 1;
 
-  const sample = sets[current] || [];
-  const meanings = sample.map(w => ({ text: w.meaning, pair: w.word }));
-  const words = sample.map(w => ({ text: w.word, pair: w.meaning }));
-  const cards = shuffle([...meanings, ...words]);
-  const cont = document.getElementById('matchingContainer');
-  cont.innerHTML = '';
-  let selected = [];
+    const sample = sets[current] || [];
+    const meanings = sample.map(w => ({ text: w.meaning, pair: w.word }));
+    const words = sample.map(w => ({ text: w.word, pair: w.meaning }));
+    const cards = shuffle([...meanings, ...words]);
+    const cont = document.getElementById('matchingContainer');
+    cont.innerHTML = '';
+    let selected = [];
 
-  // 카드 클릭 이벤트
-  cards.forEach((item, cardIdx) => {
-    const card = document.createElement('div');
-  card.className = 'card';
-  card.textContent = item.text;
-  card.dataset.pair = item.pair;
-  card.dataset.selected = "false";
-
-  card.addEventListener('click', () => {
-    // [수정] matched여도 선택 해제 가능하게
-    if (card.classList.contains('selected')) {
-      card.classList.remove('selected');
+    // 카드 클릭 이벤트
+    cards.forEach((item, cardIdx) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.textContent = item.text;
+      card.dataset.pair = item.pair;
       card.dataset.selected = "false";
-      selected = selected.filter(c => c !== card);
-      // [추가] matched도 함께 해제
-      if (card.classList.contains('matched')) {
-        card.classList.remove('matched');
-        // userAnswers도 초기화
-    const wordValue = card.textContent;
-    const globalIdx = wordList.findIndex(item => item.word === wordValue);
-    if (globalIdx !== -1) userAnswers[globalIdx] = "미응답";
-      }
-      return;
-    }
-    // [수정] matched 카드도 선택 가능(재도전)
-    // (아예 matched여도 막지 않음)
 
-    // [★ 두 개까지 선택 가능]
-    if (selected.length === 2) return;
-
-    // [★ 언어 구분: 한글-영어만 허용]
-    if (selected.length === 1) {
-      const prev = selected[0];
-      const prevIsKor = isKorean(prev.textContent);
-      const nowIsKor = isKorean(card.textContent);
-      if (prevIsKor === nowIsKor) {
-        // 둘 다 한글이거나 둘 다 영어면 선택 불가!
-        return;
-      }
-    }
-
-    card.classList.add('selected');
-    card.dataset.selected = "true";
-    selected.push(card);
-
-    if (selected.length === 2) {
-      const [a, b] = selected;
-      // [수정] 매칭 체크 (정답/오답 처리)
-      if (a.dataset.pair === b.textContent && b.dataset.pair === a.textContent) {
-        a.classList.add('matched');
-        b.classList.add('matched');
-      } 
-
-        // 답안 기록 (영어가 포함된 카드를 userAnswers에 저장) *수정
-        sample.forEach((w, idx) => {
-          const globalIdx = wordList.findIndex(item => item.word === w.word);
-           if (a.textContent === w.word || b.textContent === w.word) {
-             if (a.dataset.pair === b.textContent && b.dataset.pair === a.textContent) {
-           userAnswers[globalIdx] = w.word; // 정답
-             } else {
-        // 오답도 영어로 저장
-          let answerText = '';
-          if (isEnglish(a.textContent)) answerText = a.textContent;
-          else if (isEnglish(b.textContent)) answerText = b.textContent;
-          userAnswers[globalIdx] = answerText;
-            }
+      card.addEventListener('click', () => {
+        // 선택 해제
+        if (card.classList.contains('selected')) {
+          card.classList.remove('selected');
+          card.dataset.selected = "false";
+          selected = selected.filter(c => c !== card);
+          if (card.classList.contains('matched')) {
+            card.classList.remove('matched');
+            const wordValue = card.textContent;
+            const globalIdx = wordList.findIndex(item => item.word === wordValue);
+            if (globalIdx !== -1) userAnswers[globalIdx] = "미응답";
           }
-        });
-        selected = [];
-        // 모든 카드가 선택되었으면 "다음" 버튼 표시
-        if (cont.querySelectorAll('.selected').length === cards.length) {
-          document.getElementById('nextBtn').style.display = 'inline-block';
+          return;
         }
-      }
-    });
-    cont.appendChild(card);
-      });
+
+        // 두 개까지 선택 가능
+        if (selected.length === 2) return;
+
+        // 한글-영어 조합만 허용
+        if (selected.length === 1) {
+          const prev = selected[0];
+          const prevIsKor = isKorean(prev.textContent);
+          const nowIsKor = isKorean(card.textContent);
+          if (prevIsKor === nowIsKor) return;
+        }
+
+        card.classList.add('selected');
+        card.dataset.selected = "true";
+        selected.push(card);
+
+        if (selected.length === 2) {
+  const [a, b] = selected;
+  let selectedEng = '';
+  if (isEnglish(a.textContent)) selectedEng = a.textContent;
+  if (isEnglish(b.textContent)) selectedEng = b.textContent;
+
+   // 현재 뜻(문제)에 대응하는 인덱스를 찾는다.
+  const selectedKor = isKorean(a.textContent) ? a.textContent : b.textContent;
+  const wordIdxInBatch = sample.findIndex(w => w.meaning === selectedKor);
+  const globalIdx = (current * batchSize) + wordIdxInBatch;
+  // 매칭 체크
+  a.classList.add('matched');
+  b.classList.add('matched');
+
+ if (globalIdx !== -1) {
+    userAnswers[globalIdx] = selectedEng; // 오답/정답 상관없이 기록
+  }
+         selected = [];
+           // 모든 카드가 matched 되었을 때만 nextBtn 보이게!
+const matchedCount = cont.querySelectorAll('.matched').length;
+if (matchedCount === cards.length) {
+  document.getElementById('nextBtn').style.display = 'inline-block';
     }
+        }
+      });
+      cont.appendChild(card);
+    });
+  }
+
+   
     
 
     document.getElementById('nextBtn').addEventListener('click', () => {
@@ -503,18 +491,30 @@
       setNewTarget();
       spawnTimer = setInterval(spawnBalloon, 600);
     }
-
+    // goToResultPage 함수에서 오직 "matching" 모드에서만 "오답:" 규칙을 적용하면 됩니다.
     // 공통 결과 포맷 생성 (수정)
     function goToResultPage() {
+
+      // 결과 생성 전 로그!
+  console.log('wordList:', wordList.map(w => w.word));
+  console.log('userAnswers:', userAnswers);
+
       const resultData = wordList.map((w, i) => {
     let correct = false;
     let userAnswer = userAnswers[i];
     // undefined/null 이면 "미응답" 표시
     if (!userAnswer) userAnswer = "미응답";
     
-  if (userAnswer !== "미응답") {
-      correct = userAnswer.trim().toLowerCase() === w.word.toLowerCase();
+   if (mode === "matching") {
+      correct = userAnswer === w.word; // 딱 맞을 때만 true, 나머지 전부 false
+    } else {
+      if (userAnswer !== "미응답") {
+        correct = userAnswer.trim().toLowerCase() === w.word.toLowerCase();
+      }
     }
+
+    // resultData 내부까지 로그!
+    console.log(`[채점] 문제=${w.word}, 유저답=${userAnswer}, 정답여부=${correct}`);
     return {
       word_id: w.id || w.word_id,
       word: w.word,
