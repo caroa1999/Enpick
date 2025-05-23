@@ -21,8 +21,6 @@ const transporter = nodemailer.createTransport({ //이메일 세팅
   }
 });
 
-
-
 app.use(cors());
 
 app.use(bodyParser.urlencoded({ extended: true })); //요청 본문 파싱으로 이 코드가 없으면 로그인 기능이 작동하지 않음음
@@ -34,9 +32,6 @@ app.use(session({
   resave: false,
   saveUninitialized: false
 }));
-app.use(express.json());
-app.use('/api/dailytest', require('./routes/dailytest'));
-
 
 // MySQL과 연결
 const db = mysql.createConnection({
@@ -64,8 +59,7 @@ app.get('/', (req, res) => { //local:3000 접속시 진입점을 설정
   });
 });
 
-// *수정
-app.post('/signup', async (req, res) => {
+app.post('/signup', async (req, res) => { //회원가입 요청시 실행되는 코드
   const { full_name, email, password } = req.body;
 
   if (!full_name || !email || !password) {
@@ -73,49 +67,23 @@ app.post('/signup', async (req, res) => {
   }
 
   try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // 회원 정보 삽입
-    const [result] = await db.promise().query(
+    const hashedPassword = await bcrypt.hash(password, 10); //
+    db.query(
       'INSERT INTO users (full_name, email, password) VALUES (?, ?, ?)',
-      [full_name, email, hashedPassword]
+      [full_name, email, hashedPassword],
+      (err) => {
+        if (err) {
+          console.error('회원가입 DB 삽입 오류:', err);
+          return res.redirect('/signup.html?error=' + encodeURIComponent('Email already exists or server error.'));
+        }
+        res.redirect('/login.html');
+      }
     );
-
-    // 새로 생성된 사용자 ID
-    const userId = result.insertId;
-// 오늘 날짜로 미션 삽입
-const today = new Date().toISOString().slice(0, 10);
-
-// 중복 제거된 미션 타입 배열
-const missionTypes = [
-  'attendance', 'balloon', 'block', 'context',
-  'game', 'matching', 'quiz', 'review',
-  'reviewstudy', 'reviewtest', 'test',
-  'context', 'quiz', 'matching', 'block', 'balloon'  // ← 중복 있음
-];
-
-// ✅ 중복 제거된 유일한 목록 생성
-const uniqueTypes = [...new Set(missionTypes)];
-
-// ✅ 중복 없는 INSERT 문 생성
-const values = uniqueTypes.map(type => `(${userId}, '${today}', '${type}', false)`).join(', ');
-
-// ✅ 중복이면 update 처리
-await db.promise().query(`
-  INSERT INTO mission_logs (user_id, date, mission_type, completed)
-  VALUES ${values}
-  ON DUPLICATE KEY UPDATE completed = VALUES(completed);
-`);
-
-    // 회원가입 성공 후 로그인 페이지로 이동
-    res.redirect('/login.html');
-    
-  } catch (err) {
-    console.error('회원가입 에러:', err);
-    return res.redirect('/signup.html?error=' + encodeURIComponent('Email already exists or server error.'));
+  } catch (e) {
+    console.error('회원가입 중 서버 에러:', e);
+    return res.redirect('/signup.html?error=' + encodeURIComponent('Internal server error.'));
   }
 });
-
 
 app.post('/login', async (req, res) => { //수정됨: 로그인 에러메세지 출력 위해 수정, json방식 이용
   const { email, password } = req.body;
@@ -133,12 +101,11 @@ app.post('/login', async (req, res) => { //수정됨: 로그인 에러메세지 
       const match = await bcrypt.compare(password, user.password);
 
       if (match) {
-        req.session.user = user;  // 세션에 사용자 저장
+        req.session.user = user;
         res.status(200).json({
           success: true,
           role: user.role,
-          name: user.full_name,
-          userId: user.id   
+          name: user.full_name
         });
       } else {
         res.status(401).json({ success: false, message: 'Incorrect Password' });
@@ -177,7 +144,7 @@ app.post('/send-reset-code', (req, res) => { //비밀번호 찾기 요청시 실
     resetCodes[trimmedEmail] = code;
 
     const mailOptions = {
-      from: 'qus7932@gmail.com',
+      from: 'kopkkada@gmail.com',
       to: trimmedEmail,
       subject: 'EnPick Password Reset Code',
       text: `Verification Code: ${code}`
@@ -792,26 +759,13 @@ app.post('/api/init-daily', async (req, res) => {
         // 기존 미션으로 mission_logs 생성
         const logs = missions.map(m => [userId, today, m.mission_type, false]);
         
-        // 게임 미션 추가
-        const gameMissions = ['context', 'quiz', 'matching', 'block', 'balloon'];
-        const gameLogs = gameMissions.map(m => [userId, today, m, false]);
+        // // 게임 미션 추가
+        // const gameMissions = ['context', 'quiz', 'matching', 'block', 'balloon'];
+        // const gameLogs = gameMissions.map(m => [userId, today, m, false]);
         
-// ✅ 전체를 합친 후 중복 제거
-  const combined = [...logs, ...gameLogs];
-
-  // ✅ mission_type 기준으로 중복 제거
-  const seen = new Set();
-  const uniqueLogs = combined.filter(([_, __, missionType]) => {
-    if (seen.has(missionType)) return false;
-    seen.add(missionType);
-    return true;
-  });
-
-
-        // ✅ 중복 제거된 logs로 INSERT
-await db.promise().query(
-  'INSERT INTO mission_logs (user_id, date, mission_type, completed) VALUES ?',
-  [uniqueLogs]
+        await db.promise().query(
+          'INSERT INTO mission_logs (user_id, date, mission_type, completed) VALUES ?',
+          [logs]
         );
       }
     }
@@ -1009,25 +963,22 @@ app.post('/api/mission-complete', async (req, res) => {
   }
 
   try {
-    await db.promise().query( // 미션 완료 처리 * 수정
-       `INSERT INTO mission_logs (user_id, date, mission_type, completed)
-        VALUES (?, ?, ?, true)
-        ON DUPLICATE KEY UPDATE completed = true`,
-           [user_id, today, mission_type]
+    await db.promise().query(
+      `UPDATE mission_logs
+       SET completed = true
+       WHERE user_id = ? AND date = ? AND mission_type = ?`,
+      [user_id, today, mission_type]
     );
 
     // 게임 미션 완료 처리
-    if (['context', 'quiz', 'matching', 'block', 'balloon'].includes(mission_type)) {
-      // 정답률이 70% 이상일 때만 game 미션 완료
-      if (accuracy >= 70) {
-        await db.promise().query(
-          `INSERT INTO mission_logs (user_id, date, mission_type, completed)
-           VALUES (?, ?, 'game', true)
-           ON DUPLICATE KEY UPDATE completed = true`,
-          [user_id, today]
-        );
-      }
-    }
+    // if (['context', 'quiz', 'matching', 'block', 'balloon'].includes(mission_type)) {
+    //   await db.promise().query(
+    //       `INSERT INTO mission_logs (user_id, date, mission_type, completed)
+    //        VALUES (?, ?, 'game', true)
+    //        ON DUPLICATE KEY UPDATE completed = true`,
+    //       [user_id, today]
+    //     );
+    // }
 
     // 복습 미션 완료 처리
     if (mission_type === 'reviewstudy' || mission_type === 'reviewtest') {
@@ -1122,24 +1073,433 @@ app.get('/api/random-words', (req, res) => {
   });
 });
 
-app.get('/api/dailytest/history', async (req, res) => {
-  const userId = req.session?.user?.id || req.query.user_id;
+//주간미션
+app.get('/api/mission-history', async (req, res) => {
+  const userId = parseInt(req.query.user_id);
+  const days = parseInt(req.query.days || 7);
 
-  if (!userId) {
-    return res.status(401).json({ success: false, message: 'Not logged in' });
+  if (!userId) return res.status(400).json({ error: 'user_id required' });
+
+  try {
+    const [rows] = await db.promise().query(`
+      SELECT date, mission_type, completed
+      FROM mission_logs
+      WHERE user_id = ?
+        AND date >= DATE_FORMAT(CONVERT_TZ(NOW(), '+00:00', '+09:00') - INTERVAL ? DAY, '%Y-%m-%d')
+    `, [userId, days]);
+
+    // 날짜별로 정리
+    const grouped = {};
+    for (const row of rows) {
+      const date = new Date(row.date);
+      const kstDate = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+      const key = kstDate.toISOString().split('T')[0]; // 'YYYY-MM-DD' 형태
+      if (!grouped[key]) grouped[key] = {};
+      grouped[key][row.mission_type] = Boolean(row.completed);
+    }
+
+    // KST 기준 오늘 날짜 생성
+    const today = new Date();
+    today.setHours(today.getHours() + 9); // UTC → KST
+
+    const results = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+
+      const log = grouped[dateStr] || {};
+      const allCompleted = ['attendance', 'review', 'test', 'game'].every(m => log[m]);
+
+      results.push({
+        date: dateStr,
+        completed: allCompleted
+      });
+    }
+
+    res.json(results);
+  } catch (err) {
+    console.error('mission-history 오류:', err);
+    res.status(500).json({ error: 'DB 오류' });
   }
-
-  const [rows] = await db.promise().query(`
-    SELECT date, accuracy
-    FROM daily_test_result
-    WHERE user_id = ?
-    ORDER BY date DESC
-    LIMIT 7
-  `, [userId]);
-
-  res.json(rows.reverse()); // 최신→과거순 → 과거→최신순으로 정렬
 });
 
+//랭킹 위한 결과저장
+app.post('/api/save-result', async (req, res) => {
+  const {
+    userId,
+    source,       // 'mywords' or 'all' (게임이면 null)
+    correctCount,
+    wrongCount,
+    accuracy
+  } = req.body;
+
+  const date = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+  if (!userId || !source || accuracy == null) {
+    return res.status(400).send('필수 정보 누락');
+  }
+
+  try {
+    // 하루 최대 3회까지 저장 가능 (카테고리별)
+    /*const [[{ count }]] = await db.promise().query(`
+      SELECT COUNT(*) AS count
+      FROM results_save
+      WHERE user_id = ? AND date = ? AND source = ?
+    `, [userId, date, source]);
+
+    if (count >= 3) {
+      return res.status(429).send('하루 최대 3회까지 저장 가능합니다.');
+    }*/
+
+    await db.promise().query(`
+      INSERT INTO results_save
+        (user_id, date, source, correct_count, wrong_count, accuracy)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [
+      userId,
+      date,
+      source || null,
+      correctCount ?? 0,
+      wrongCount ?? 0,
+      accuracy
+    ]);
+
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('결과 저장 오류:', err);
+    res.status(500).send('서버 오류');
+  }
+});
+
+
+// 랭킹 API - 실시간 계산, results_save 기반
+// 각 사용자에 대해 오늘의 점수를 계산하여 내림차순으로 정렬한 후 JSON으로 반환
+app.get('/api/rankings', async (req, res) => {
+  const period = req.query.period || 'today';
+  const today = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const todayStr = today.toISOString().split('T')[0];
+
+  try {
+    const [users] = await db.promise().query(`SELECT id, email, full_name AS username FROM users`);
+
+    // ✅ 기간 누적 모드: week / month
+    if (period === 'week' || period === 'month') {
+      const days = period === 'week' ? 6 : 29;
+      const startDate = new Date(today.getTime() - days * 24 * 60 * 60 * 1000)
+        .toISOString().split('T')[0];
+
+      const rankings = await Promise.all(users.map(async ({ id, username, email }) => {
+        const [[{ total }]] = await db.promise().query(`
+          SELECT SUM(total_score) AS total
+          FROM daily_rankings
+          WHERE user_id = ? AND date >= ?
+        `, [id, startDate]);
+
+        return {
+          username, email,
+          total_score: Math.round((total || 0) * 10) / 10
+        };
+      }));
+
+      rankings.sort((a, b) => b.total_score - a.total_score);
+      return res.json(rankings);
+    }
+
+    // ✅ 실시간 계산 모드: today (기존 ranking-points 복제)
+    const yesterday = new Date(today.getTime() - 15 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    const rankings = await Promise.all(users.map(async ({ id, username, email }) => {
+      let total = 0;
+
+      const [[aToday]] = await db.promise().query(`
+        SELECT 1 FROM mission_logs WHERE user_id = ? AND date = ? AND mission_type = 'attendance'
+      `, [id, todayStr]);
+      const [[aYesterday]] = await db.promise().query(`
+        SELECT 1 FROM mission_logs WHERE user_id = ? AND date = ? AND mission_type = 'attendance'
+      `, [id, yesterday]);
+      const attendance = (aToday ? 1 : 0) + (aToday && aYesterday ? 1 : 0);
+      total += attendance;
+
+      const [tests] = await db.promise().query(`
+        SELECT accuracy FROM results_save
+        WHERE user_id = ? AND date = ? AND source = 'daily'
+        ORDER BY id ASC LIMIT 3
+      `, [id, todayStr]);
+      total += tests.reduce((sum, row) => sum + Math.floor(row.accuracy), 0) / 10;
+
+      const [games] = await db.promise().query(`
+        SELECT accuracy FROM results_save
+        WHERE user_id = ? AND date = ? AND source = 'game'
+        ORDER BY id ASC LIMIT 3
+      `, [id, todayStr]);
+      total += games.reduce((sum, row) => sum + Math.floor(row.accuracy), 0) / 10;
+
+      const [mToday] = await db.promise().query(`
+        SELECT mission_type FROM mission_logs
+        WHERE user_id = ? AND date = ? AND completed = true
+      `, [id, todayStr]);
+      const [mYesterday] = await db.promise().query(`
+        SELECT mission_type FROM mission_logs
+        WHERE user_id = ? AND date = ? AND completed = true
+      `, [id, yesterday]);
+
+      const mSet = new Set(mToday.map(m => m.mission_type));
+      const ySet = new Set(mYesterday.map(m => m.mission_type));
+      const coreM = ['review', 'reviewstudy', 'reviewtest', 'test', 'game'];
+
+      let missionScore = 0;
+      coreM.forEach(m => {
+        if (mSet.has(m)) missionScore += (m === 'review' ? 1 : 2);
+      });
+      if (coreM.every(m => mSet.has(m)) && coreM.every(m => ySet.has(m))) {
+        missionScore += 4;
+      }
+      total += Math.min(missionScore, 13);
+
+      return {
+        username, email,
+        total_score: Math.round(total * 10) / 10
+      };
+    }));
+
+    rankings.sort((a, b) => b.total_score - a.total_score);
+    res.json(rankings);
+  } catch (err) {
+    console.error('랭킹 계산 오류:', err);
+    res.status(500).send('랭킹 계산 중 오류 발생');
+  }
+});
+
+
+// /api/ranking-points - 사용자 본인 점수 자동 계산 & 덮어쓰기 저장 (REPLACE 방식)
+app.get('/api/ranking-points', async (req, res) => {
+  const userId = req.query.user_id;
+  if (!userId) return res.status(400).send('user_id는 필수입니다.');
+
+  const period = req.query.period || 'day';
+  const today = new Date(Date.now() + 9 * 60 * 60 * 1000)
+    .toISOString().split('T')[0];
+
+  try {
+    // 기간 집계: week / month
+    if (period === 'week' || period === 'month') {
+      const daysBack = period === 'week' ? 6 : 29;
+      const startDate = new Date(Date.now() + 9*60*60*1000 - daysBack * 24*60*60*1000)
+        .toISOString().split('T')[0];
+      const endDate = today;
+
+
+      const [[row]] = await db.promise().query(
+      `SELECT
+        ROUND(SUM(attendance_score), 1)   AS attendance_score,
+        ROUND(SUM(test_score), 1)         AS test_score,
+        ROUND(SUM(game_score), 1)         AS game_score,
+        ROUND(SUM(mission_score), 1)      AS mission_score,
+        ROUND(
+          SUM(attendance_score)
+          + SUM(test_score)
+          + SUM(game_score)
+          + SUM(mission_score)
+        , 1)                              AS total_score
+      FROM daily_rankings
+      WHERE user_id = ? AND date BETWEEN ? AND ?`,
+      [userId, startDate, endDate]
+    );
+
+      const attendance_score = row.attendance_score  || 0;
+      const test_score       = row.test_score        || 0;
+      const game_score       = row.game_score        || 0;
+      const mission_score    = row.mission_score     || 0;
+      const total_score      = row.total_score       || 0;
+
+      return res.json({
+        total_score,
+        attendance_score,
+        test_score,
+        game_score,
+        mission_score
+      });
+    }
+
+    // === "day" (오늘) 계산 ===
+    const yesterday = new Date(Date.now() + 9*60*60*1000 - 15*60*60*1000)
+      .toISOString().split('T')[0];
+
+    let total = 0;
+
+    // (1) 출석 + 연속 출석 보너스
+    const [[aToday]] = await db.promise().query(
+      `SELECT 1 FROM mission_logs WHERE user_id = ? AND date = ? AND mission_type = 'attendance' AND completed   = true`,
+      [userId, today]
+    );
+    const [[aYesterday]] = await db.promise().query(
+      `SELECT 1 FROM mission_logs WHERE user_id = ? AND date = ? AND mission_type = 'attendance' AND completed   = true`,
+      [userId, yesterday]
+    );
+    const attendance = (aToday ? 1 : 0) + (aToday && aYesterday ? 1 : 0);
+    total += attendance;
+
+    // (3) 테스트 (최대 3회, accuracy 합산/10)
+    const [tests] = await db.promise().query(
+      `SELECT accuracy FROM results_save
+         WHERE user_id = ? AND date = ? AND source = 'daily'
+      ORDER BY id ASC LIMIT 3`,
+      [userId, today]
+    );
+    const test = tests.reduce((sum, r) => sum + Math.floor(r.accuracy), 0) / 10;
+    total += test;
+
+    // (4) 게임 (최대 3회, accuracy 합산/10)
+    const [games] = await db.promise().query(
+      `SELECT accuracy FROM results_save
+         WHERE user_id = ? AND date = ? AND source = 'game'
+      ORDER BY id ASC LIMIT 3`,
+      [userId, today]
+    );
+    const game = games.reduce((sum, r) => sum + Math.floor(r.accuracy), 0) / 10;
+    total += game;
+
+    // (5) 미션 + 연속 미션 보너스
+    const [mToday] = await db.promise().query(
+      `SELECT mission_type FROM mission_logs
+         WHERE user_id = ? AND date = ? AND completed = true`,
+      [userId, today]
+    );
+    const [mYesterday] = await db.promise().query(
+      `SELECT mission_type FROM mission_logs
+         WHERE user_id = ? AND date = ? AND completed = true`,
+      [userId, yesterday]
+    );
+    const mSet = new Set(mToday.map(m => m.mission_type));
+    const ySet = new Set(mYesterday.map(m => m.mission_type));
+    const coreM = ['review', 'reviewstudy', 'reviewtest', 'test', 'game'];
+    let mission_score = 0;
+    coreM.forEach(m => {
+      if (mSet.has(m)) mission_score += (m === 'review' ? 1 : 2);
+    });
+    if (coreM.every(m => mSet.has(m)) && coreM.every(m => ySet.has(m))) {
+      mission_score += 4;
+    }
+    mission_score = Math.min(mission_score, 13);
+    total += mission_score;
+
+    // 최종 점수
+    const total_score = Math.round(total * 10) / 10;
+
+    // 오늘 점수 저장
+    await db.promise().query(
+      `REPLACE INTO daily_rankings
+         (user_id, date, attendance_score,
+          test_score, game_score, mission_score, total_score)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [userId, today,
+       attendance, test,
+       game, mission_score, total_score]
+    );
+
+    return res.json({
+      total_score,
+      attendance_score: attendance,
+      test_score: test,
+      game_score: game,
+      mission_score,
+    });
+
+  } catch (err) {
+    console.error('점수 계산 오류:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// 오늘 학습(study)한 단어 개수 조회
+app.get('/api/learning-log/count', async (req, res) => {
+  const userId = parseInt(req.query.user_id);
+  if (!userId) return res.status(400).send('user_id 누락');
+
+  // KST 기준 오늘 날짜
+  const today = new Date(Date.now() + 9*60*60*1000)
+    .toISOString().split('T')[0];
+
+  try {
+    // COUNT(*) 로 오늘의 study 로그 개수를 셈
+    const [[{ cnt }]] = await db.promise().query(
+      `SELECT COUNT(*) AS cnt
+         FROM learning_log
+        WHERE user_id = ?
+          AND date = ?
+          AND type = 'study'`,
+      [userId, today]
+    );
+    res.json({ count: cnt });
+  } catch (err) {
+    console.error('학습 로그 카운트 조회 오류:', err);
+    res.status(500).send('서버 오류');
+  }
+});
+
+app.get('/api/score-history', async (req, res) => {
+  const userId = req.query.user_id;
+  if (!userId) return res.status(400).send('user_id 누락');
+
+  const today = new Date();
+  today.setHours(today.getHours() + 9); // KST
+  const dates = [];
+
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const str = d.toISOString().split('T')[0];
+    dates.push(str);
+  }
+
+  try {
+    // 1. 랭킹 점수 테이블에서 점수 가져오기
+    const [scoreRows] = await db.promise().query(
+      `SELECT date, total_score FROM daily_rankings
+       WHERE user_id = ? AND date BETWEEN ? AND ?`,
+      [userId, dates[0], dates[6]]
+    );
+    const scoreMap = Object.fromEntries(
+      scoreRows.map(r => {
+        // MySQL DATE → JS Date(UTC midnight) → KST 적용
+        const utcMs = r.date.getTime();
+        const kstDate = new Date(utcMs + 9 * 60 * 60 * 1000);
+        const key = kstDate.toISOString().split('T')[0];  // "YYYY-MM-DD"
+        return [key, r.total_score];
+      })
+    );
+
+    // 2. 정답률 가져오기 (results_save에서 source=daily + 3회 평균)
+    const [accRows] = await db.promise().query(
+      `SELECT date, ROUND(AVG(accuracy), 1) AS accuracy
+       FROM results_save
+       WHERE user_id = ? AND source = 'daily' AND date BETWEEN ? AND ?
+       GROUP BY date`,
+      [userId, dates[0], dates[6]]
+    );
+    const accMap = Object.fromEntries(
+      accRows.map(r => {
+        const utcMs = r.date.getTime();
+        const kstDate = new Date(utcMs + 9 * 60 * 60 * 1000);
+        const key = kstDate.toISOString().split('T')[0];
+        return [key, r.accuracy];
+      })
+    );
+
+    // 3. 날짜별로 정리
+    const results = dates.map(date => ({
+      date,
+      total_score: scoreMap[date] ?? 0,
+      accuracy: accMap[date] ?? 0
+    }));
+
+    res.json(results);
+  } catch (err) {
+    console.error('score-history 오류:', err);
+    res.status(500).send('서버 오류');
+  }
+});
 
 app.listen(port, () => {
   console.log(`서버가 http://localhost:${port} 에서 실행 중`);
